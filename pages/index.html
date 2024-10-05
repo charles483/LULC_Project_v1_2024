@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LULC & Forest Change Detection</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        /* Basic Styles */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        header {
+            background-color: #333;
+            color: white;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .button-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        .button {
+            padding: 15px 40px;
+            margin: 0 10px;
+            background-color: #f0f0f0;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+
+        .button:hover {
+            background-color: #dcdcdc;
+        }
+
+        .button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .separator-line {
+            border-top: 2px solid #ddd;
+            margin: 20px 0;
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>LULC & Forest Change Detection</h1>
+</header>
+
+<div class="button-container">
+    <button class="button active" id="aboutBtn">About Project</button>
+    <button class="button" id="contributorsBtn">Active Team Contributors</button>
+</div>
+
+<div class="separator-line"></div>
+
+<div class="container" id="contentArea">
+    <!-- Dynamic Content will be inserted here -->
+</div>
+
+<script>
+    const taskData = [
+        { task: "Data Selection", lead: "Daria Akhbari" },
+        { task: "Data Collection", lead: "Kaushik Roy" },
+        { task: "Data Preprocessing and Visualization", lead: "Noelia" },
+        { task: "Model Development and Training", lead: "Akhil Chibber" },
+        { task: "Deployment and Dashboard", lead: "Vinod Cherian" }
+    ];
+
+    const contributors = [
+        "Abhi Agarwal", "Akhil Chibber", "Daria Akhbari", 
+        "Deepali", "Deepanshu Rajput", "Elias Dzobo", 
+        "Getrude Obwoge", "Joseph N. Moturi", "Kaushik Roy", 
+        "Noelia", "Rayy Benhin", "Sanjiv", "Sugandaram M", 
+        "Vinod Cherian", "Yaninthé"
+    ];
+
+    const sortedContributors = contributors.sort();
+
+    document.getElementById("aboutBtn").addEventListener("click", function() {
+        setActiveTab("about");
+    });
+
+    document.getElementById("contributorsBtn").addEventListener("click", function() {
+        setActiveTab("contributors");
+    });
+
+    function setActiveTab(tab) {
+        const aboutBtn = document.getElementById("aboutBtn");
+        const contributorsBtn = document.getElementById("contributorsBtn");
+        const contentArea = document.getElementById("contentArea");
+
+        if (tab === "about") {
+            aboutBtn.classList.add("active");
+            contributorsBtn.classList.remove("active");
+            contentArea.innerHTML = `
+                <h2>About Project</h2>
+                <p>This project is initiated by the Land View Detectives to solve Real World Problems.</p>
+                <h3>The Problem</h3>
+                <p>Mapping land use and land cover categories over time is essential for environmental monitoring, urban planning, and climate adaptation. This project aims to build a Machine Learning model to classify Land Use and Land Cover (LULC) in satellite imagery. The project results will be open source, connecting local organizations and communities with AI tools to address local challenges like land use monitoring.</p>
+                <h3>The Goals</h3>
+                <ul>
+                    <li>A Web GIS dashboard containing LULC Map of the region of interest.</li>
+                    <li>The best-performing ML model(s).</li>
+                    <li>Datasets collected during the project available on Google Drive.</li>
+                    <li>A well-documented open-source GitHub repository.</li>
+                    <li>Documentation of the work and approach.</li>
+                </ul>
+            `;
+        } else if (tab === "contributors") {
+            aboutBtn.classList.remove("active");
+            contributorsBtn.classList.add("active");
+            const taskTable = taskData.map(task => `<tr><td>${task.task}</td><td>${task.lead}</td></tr>`).join('');
+            contentArea.innerHTML = `
+                <h2>Active Team Contributors</h2>
+                <p>This section features active contributors to the project and their roles.</p>
+                <h3>Task Assignments</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Task Name</th>
+                            <th>Task Lead Name</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${taskTable}
+                    </tbody>
+                </table>
+                <h3>Active Contributors (a-z order)</h3>
+                <p>${sortedContributors.join(', ')}</p>
+            `;
+        }
+    }
+
+    // Set default view
+    setActiveTab("about");
+</script>
+
+</body>
+</html>
