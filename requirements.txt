@@ -1,4 +1,5 @@
-streamlit>=1.10.0
-geemap>=0.13.0
-folium>=0.12.1
-earthengine-api>=0.1.301
+streamlit
+geemap
+folium
+earthengine-api
+streamlit_folium
