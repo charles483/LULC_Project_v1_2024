@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "ee-gisandremotesensing22",
+  "private_key_id": "a03bb28419142f82e4a66225279e421ac12ed7f2",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCtI0QncF48kOp/\n2MvkdEqhqeuBAfiwCAfyO6ElBSDnUY1AX7aWyWOTsqUTaER80RN+dX+hO4qDwzsL\n84NqqTPO8wmYRvH1zkqs31ZdMBHrsPWGMKrfLCcu5CUCrqokGAHL725AliQOyWIW\n6CtrFmb90NyWF/WM1gUdd0SrFuWQUzylUexJllbCgpxNEtCvyM2jWT/8qOD97aW+\n4XBV4SLCAllo8yvsiruKASFdAjPtyjI99qLa00vtDnyJnLvx2pd/Yw4MxBWuuhkr\nC3JLn6fnY/sArFxd5qLbd56BO9iRBQsFXCsfXIE1L5YSvmhGq3yi1ilKkxIz5+LW\nkbF6uMEdAgMBAAECggEAVIrncUCn63gx4Zq5uQTmGnnQAw804bQSOUDPx7Vw4zNJ\nv3jdPlT5eDof7FGaO76V/8adO1xJH1z6HLRcY/1aTIAVm9NsvAPvJ+nokJlz7rxa\nr5tdHJvBSF7kCaLDdtt4KR5xnj0SP1wrtxbIeMKYKPFPfUUWxJ4PIlvGXqrQDwAg\na7JcYGe7TXWDuCAdSvoAMxAtqWmQ1La85foQRcJcNgco2UImJ4pwE/F+ugfoi786\nwjgevgA2Im2ds6KElWWEZRxVFmdc60LxJtRhSlSHfnlMKIS6NQ1qpiP9fzN2AhA0\nhChDMnyDQx3GoCQlodqmDESXTm2oEEA1aM35z8g0WwKBgQDYMkOU7zYZI3sBS3bj\nAzc4FxbGuSoO/oF5OXxIBIUsTrw+DPxLVv0cEANDI7KVOPpGe6ChVx8GWmRSE3AE\n/zENn1E+aeC8kK+QsZXxayc/d80kO2f7q1+lJhW804Z3pNadiAHiQavkcUX7U6zA\ntatPhr5nlJoJKQNHyJqDKMoYfwKBgQDNA5IsqTD+Rk+zYEMRuUMBpnq6sBes2Whk\nqB8v0JuzL7O6ClswdHZHcxlzDHbLIo2HKxJv+OpBk3NfE7/gxEFw7WtMG8pyWuxk\nJmUG+Q38gUMV+BXsDn1xH2Z33rbsw4qjhCd0yCxYNiKGHKufA8n/4WoYonU/44M9\nr9Ouggq4YwKBgQCR8bR/iNAbPkFeCWRzMQuIuMVuVzcWMiaTAARu1WZVF72pobh6\n33k0BXc+To3SgEkrZW91GsvdzQ1l/qsjJGYnzQHaQT0t7fomkksnUu+Gv8fjCptS\nYEjLwp7v/lcK02LxqwuigjSYnQLh+4Vl/f1sTQiiAcXOIzqMrdXobpOm3wKBgAxQ\nCpdkEe0zi9XaEi0eU0fmF7jemo1nAT4KWtUkUjWQx9qEhLWESRZBc2XVecz5ZkaX\n76OJ74fAs00igoOdRdDicW9AvAfiLhBVvfuNOanQmZbYL3jd5erFWAIa/iF6HPl1\nFmmNHBywI6KqViRWtesIPrb8Cs6re1ZZGP2CEeLBAoGAATNkOesfuOq8uztFx3de\n/dPQf51EWNUa4FSHY+QsnbLBpndUXwOOwWk2nN2y2OBgGy0L6/g2rhfVd689i0b5\n1VBqgf44o2/TmhTfbsZVjXbYI7ONrgcZzD9mVPydbfU2dtFU6dvqkCw8FeXiZ6hn\nVqkPfW+bwY2btbsJPT5VlBU=\n-----END PRIVATE KEY-----\n",
+  "client_email": "earthengine@ee-gisandremotesensing22.iam.gserviceaccount.com",
+  "client_id": "113544221369514519834",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/earthengine%40ee-gisandremotesensing22.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
