@@ -1,4 +1,3 @@
-Here's a more concise version of the project setup with acknowledgments:
 
 ---
 
