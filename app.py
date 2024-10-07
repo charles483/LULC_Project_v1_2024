@@ -108,7 +108,7 @@ def get_lulc_image(year, classifier_type):
 # Function to calculate LULC statistics
 def calculate_lulc_statistics(lulc_image):
     class_values = [0, 1, 2, 3]  # Assuming 4 classes for simplicity
-    class_names = ['Urban', 'Forest', 'Water', 'Agriculture']
+    class_names = ['Bareland', 'Forest', 'Builtup', 'Agriculture']
     pixel_area = ee.Image.pixelArea()
 
     # Create an empty dictionary to store the results
