@@ -1,97 +1,111 @@
+
 import streamlit as st
 import ee
 import folium
 from streamlit_folium import st_folium
 import geemap.foliumap as geemap
-import json
-import plotly.express as px
-import pandas as pd
+# import json    if you want to use authentication file from google earth engine service account json file uncomment this line and the function below
 
 # Path to the service account credentials file
 SERVICE_ACCOUNT_FILE = r'D:\LULC_Project_v1_2024\secrets.json'
 
-# Initialize session state variables if they do not exist
-if 'lulc_map' not in st.session_state:
-    st.session_state['lulc_map'] = None
-if 'lulc_year' not in st.session_state:
-    st.session_state['lulc_year'] = None
-if 'classifier_type' not in st.session_state:
-    st.session_state['classifier_type'] = None
-if 'lulc_stats' not in st.session_state:
-    st.session_state['lulc_stats'] = None
-if 'lulc_image' not in st.session_state:
-    st.session_state['lulc_image'] = None
+# Initialize session state variables
+session_vars = ['lulc_map', 'lulc_year', 'classifier_type', 'lulc_image', 'forest_change_image', 'forest_change_map']
+for var in session_vars:
+    if var not in st.session_state:
+        st.session_state[var] = None
 
-# Initialize Earth Engine API using service account
-def initialize_earth_engine(retries=3):
-    attempt = 0
-    message_placeholder = st.empty()  # Placeholder for dynamic messages
-    while attempt < retries:
-        try:
-            service_account_info = json.load(open(SERVICE_ACCOUNT_FILE))
-            credentials = ee.ServiceAccountCredentials(service_account_info['client_email'], SERVICE_ACCOUNT_FILE)
-            ee.Initialize(credentials)
-            message_placeholder.success("Earth Engine initialized successfully.")
-            return  # Exit the function after success
-        except Exception as e:
-            message_placeholder.error(f"Failed to initialize Earth Engine: {str(e)}. Retrying...")
-            attempt += 1
-    message_placeholder.error("Unable to initialize Earth Engine after multiple attempts.")
+# Authenticate and initialize Earth Engine with a specific project
+ee.Authenticate()  # This opens a browser for OAuth2 authentication
+ee.Initialize(project='ee-gisandremotesensing22')  # Replace with your actual project ID
 
-# Call the function to initialize Earth Engine
-initialize_earth_engine()
+# Your further Earth Engine code goes here
+print("Earth Engine has been initialized with the project ID.")
+# # Function to initialize Earth Engine API
+# def initialize_earth_engine(retries=3):
+#     message_placeholder = st.empty()
+#     attempt = 0
+#     while attempt < retries:
+#         try:
+#             service_account_info = json.load(open(SERVICE_ACCOUNT_FILE))
+#             credentials = ee.ServiceAccountCredentials(service_account_info['client_email'], SERVICE_ACCOUNT_FILE)
+#             ee.Initialize(credentials)
+#             message_placeholder.success("Earth Engine initialized successfully.")
+#             return
+#         except Exception as e:
+#             message_placeholder.error(f"Failed to initialize Earth Engine: {str(e)}. Retrying...")
+#             attempt += 1
+#     message_placeholder.error("Unable to initialize Earth Engine after multiple attempts.")
 
-# Define GEE assets and AOI (Area of Interest)
-training_samples = ee.FeatureCollection('projects/ee-samuelmuturigisdeveloper/assets/training_samplesL8_2015')
+# initialize_earth_engine()
+
+# Define GEE assets and AOI
+samples_by_year = {
+    2010: ee.FeatureCollection('projects/glassy-compiler-400707/assets/samples2010'),
+    2015: ee.FeatureCollection('projects/ee-gisandremotesensing22/assets/Landsat8_2015_Sampled_Region'),
+    2020: ee.FeatureCollection('projects/glassy-compiler-400707/assets/samples2020'),
+    2024: ee.FeatureCollection('projects/glassy-compiler-400707/assets/samples2020')
+}
+
+# Define Area of Interest (AOI) for Nyeri region
 area_of_interest = ee.FeatureCollection('FAO/GAUL_SIMPLIFIED_500m/2015/level2') \
     .filter(ee.Filter.eq('ADM2_NAME', 'Nyeri')) \
     .first() \
     .geometry()
 
-# Function to mask clouds based on the satellite used
+# Function to mask clouds based on satellite type
 def mask_clouds(image, satellite):
-    if satellite == "Landsat 8":
+    if satellite == "Landsat 5" or satellite == "Landsat 7":
+        # Use the pixel QA band to mask clouds and shadows for Landsat 5 and 7
         qa = image.select('QA_PIXEL')
-        cloud_mask = qa.bitwiseAnd(1 << 3).eq(0)  # Bit 3 is cloud
-        cloud_shadow_mask = qa.bitwiseAnd(1 << 4).eq(0)  # Bit 4 is cloud shadow
+        cloud_mask = qa.bitwiseAnd(1 << 5).eq(0)  # Cloud bit
+        cloud_shadow_mask = qa.bitwiseAnd(1 << 3).eq(0)  # Cloud shadow bit
+        return image.updateMask(cloud_mask).updateMask(cloud_shadow_mask)
+    elif satellite == "Landsat 8":
+        # Use the pixel QA band for Landsat 8
+        qa = image.select('QA_PIXEL')
+        cloud_mask = qa.bitwiseAnd(1 << 3).eq(0)  # Cloud bit
+        cloud_shadow_mask = qa.bitwiseAnd(1 << 4).eq(0)  # Cloud shadow bit
         return image.updateMask(cloud_mask).updateMask(cloud_shadow_mask)
     elif satellite == "Sentinel-2":
+        # Use the QA60 band for cloud and cirrus masking for Sentinel-2
         qa = image.select('QA60')
-        cloud_bit_mask = 1 << 10  # Bit 10 is clouds
-        cirrus_bit_mask = 1 << 11  # Bit 11 is cirrus clouds
+        cloud_bit_mask = 1 << 10
+        cirrus_bit_mask = 1 << 11
         mask = qa.bitwiseAnd(cloud_bit_mask).eq(0).And(qa.bitwiseAnd(cirrus_bit_mask).eq(0))
         return image.updateMask(mask)
-    return image  # No masking for Landsat 5
+    return image
 
-# Function to get the correct satellite image collection based on the year
+# Function to retrieve image collection for a specific year
 def get_image_collection(year):
     if year <= 2012:
-        return ee.ImageCollection("LANDSAT/LT05/C02/T1_L2")
+        return ee.ImageCollection("LANDSAT/LT05/C02/T1_L2").map(lambda img: mask_clouds(img, "Landsat 5"))
     elif 2013 <= year <= 2017:
         return ee.ImageCollection("LANDSAT/LC08/C02/T1_L2").map(lambda img: mask_clouds(img, "Landsat 8"))
     else:
         return ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED").map(lambda img: mask_clouds(img, "Sentinel-2"))
 
-# Function to get LULC image for a specific year, with cloud masking and gap filling
+# Now the cloud masking will be applied before median compositing
+
+
+# Function to retrieve and classify LULC image using year-specific samples
 def get_lulc_image(year, classifier_type):
-    collection = get_image_collection(year) \
-        .filterDate(f'{year}-01-01', f'{year}-12-31') \
-        .median() \
-        .clip(area_of_interest)
-
-    # Select appropriate bands and training samples based on the year
-    local_training_samples = training_samples if year <= 2024 else None
-
-    if year <= 2012:  # Landsat 5
+    collection = get_image_collection(year).filterDate(f'{year}-01-01', f'{year}-12-31').median().clip(area_of_interest)
+    
+    if year <= 2012:
         bands = ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7']
-    elif 2013 <= year <= 2017:  # Landsat 8
+    elif 2013 <= year <= 2017:
         bands = ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7']
-    else:  # Sentinel-2
+    else:
         bands = ['B2', 'B3', 'B4', 'B8']
 
     classification_image = collection.select(bands)
-    training = classification_image.sampleRegions(collection=local_training_samples, properties=['class'], scale=30)
+    training_samples = samples_by_year.get(year)
+    if not training_samples:
+        st.error(f"No training samples available for the year {year}")
+        return None
 
+    training = classification_image.sampleRegions(collection=training_samples, properties=['class'], scale=30)
     classifier = None
     if classifier_type == 'Random Forest':
         classifier = ee.Classifier.smileRandomForest(100).train(training, 'class', bands)
@@ -101,124 +115,123 @@ def get_lulc_image(year, classifier_type):
         classifier = ee.Classifier.smileCart().train(training, 'class', bands)
 
     if classifier is not None:
-        classified = classification_image.classify(classifier)
-        return classified
+        classified_image = classification_image.classify(classifier)
+        return classified_image
     return None
 
-# Function to calculate LULC statistics
-def calculate_lulc_statistics(lulc_image):
-    class_values = [0, 1, 2, 3]  # Assuming 4 classes for simplicity
-    class_names = ['Bareland', 'Forest', 'Builtup', 'Agriculture']
-    pixel_area = ee.Image.pixelArea()
-
-    # Create an empty dictionary to store the results
-    lulc_stats = {}
-
-    # Loop through each class and calculate the area
-    for class_value, class_name in zip(class_values, class_names):
-        class_mask = lulc_image.eq(class_value)
-        area = pixel_area.updateMask(class_mask).reduceRegion(
-            reducer=ee.Reducer.sum(),
-            geometry=area_of_interest,
-            scale=30,
-            maxPixels=1e9
-        )
-        area_hectares = ee.Number(area.get('area')).divide(10000).getInfo()
-        lulc_stats[class_name] = area_hectares
+# Function to calculate forest change between two years
+def calculate_forest_change(start_year, end_year, classifier_type):
+    start_image = get_lulc_image(start_year, classifier_type)
+    end_image = get_lulc_image(end_year, classifier_type)
     
-    return lulc_stats
+    if start_image is None or end_image is None:
+        st.error(f"Unable to retrieve classified images for the years {start_year} or {end_year}")
+        return None
 
-# Streamlit App Interface
-st.title("LULC Classification & Forest Change Detection")
+    forest_start = start_image.eq(0)
+    forest_end = end_image.eq(0)
+    forest_change = forest_end.subtract(forest_start)
 
-# Classifier selection
-classifier_type = st.selectbox("Select Classifier", ['Random Forest', 'SVM', 'CART'])
+    return forest_change
 
-# Year selection for LULC classification
-start_year = st.slider('Select year for LULC classification', 2010, 2024, 2010)
-end_year = st.slider('Select year for change detection', 2010, 2024, 2010)
-
-# LULC Classification section
-st.subheader("Land Use Land Cover (LULC) Classification")
-if st.button(f"Classify LULC for {start_year}"):
-    st.write(f"Performing LULC classification for the year {start_year} using {classifier_type}...")
-    with st.spinner("Processing..."):
-        lulc_image = get_lulc_image(start_year, classifier_type)
-    
-    if lulc_image is not None:
-        # Calculate LULC statistics
-        lulc_stats = calculate_lulc_statistics(lulc_image)
-        st.session_state['lulc_stats'] = lulc_stats
-        st.session_state['lulc_image'] = lulc_image
-
-        # Create map for LULC
-        map_lulc = geemap.Map(center=[-0.436959, 36.957951], zoom=10)
-        map_lulc.addLayer(lulc_image, {'min': 0, 'max': 3, 'palette': ['#C2B280', '#4CAF50', '#FFD700', 'red']}, f'LULC {start_year} ({classifier_type})')
-        
-        # Add a legend
-        legend_html = """
-        <div style="position: fixed; bottom: 50px; left: 50px; width: 150px; height: 120px;
-                background-color: white; border: 2px solid black; z-index:9999; font-size:14px;">
-        &nbsp;<b>LULC Legend</b><br>
-        &nbsp;<i style="background: #C2B280"></i>&nbsp;Urban<br>
-        &nbsp;<i style="background: #4CAF50"></i>&nbsp;Forest<br>
-        &nbsp;<i style="background: #FFD700"></i>&nbsp;Water<br>
-        &nbsp;<i style="background: red"></i>&nbsp;Agriculture<br>
+# Function to add legend
+def add_legend(map_obj, title, legend_dict):
+    legend_html = f"""
+    <div style="
+        position: fixed;
+        bottom: 50px;
+        left: 50px;
+        width: 150px;
+        background-color: white;
+        border: 2px solid gray;
+        z-index: 9999;
+        padding: 10px;
+        font-size: 14px;
+    ">
+        <h4 style="margin-bottom: 10px;">{title}</h4>
+    """
+    for class_name, color in legend_dict.items():
+        legend_html += f"""
+        <div style="display: flex; align-items: center; margin-bottom: 5px;">
+            <div style="background-color: {color}; width: 20px; height: 20px; margin-right: 10px;"></div>
+            <span>{class_name}</span>
         </div>
         """
-        map_lulc.get_root().html.add_child(folium.Element(legend_html))
-        
-        map_lulc.addLayerControl()
-        st.session_state['lulc_map'] = map_lulc
-        st.session_state['lulc_year'] = start_year
-        st.session_state['classifier_type'] = classifier_type
-    else:
-        st.error("LULC image generation failed. Please check the parameters.")
+    legend_html += "</div>"
+    map_obj.get_root().html.add_child(folium.Element(legend_html))
 
-# Functionality for Change Detection
-if st.button(f"Detect Change for {end_year}"):
-    if st.session_state['lulc_image'] is not None:
-        st.write(f"Detecting change in forest cover between {start_year} and {end_year}...")
-        with st.spinner("Processing..."):
-            lulc_image_end_year = get_lulc_image(end_year, classifier_type)
-            if lulc_image_end_year is not None:
-                forest_change = lulc_image_end_year.eq(1).subtract(st.session_state['lulc_image'].eq(1))
-                
-                map_change = geemap.Map(center=[-0.436959, 36.957951], zoom=10)
-                map_change.addLayer(forest_change, {'min': -1, 'max': 1, 'palette': ['red', 'white', 'green']}, f'Forest Change {start_year} to {end_year}')
-                
-                st.write("Change detection completed.")
-                st_folium(map_change, width=725)
-            else:
-                st.error("Change detection failed. Ensure both years have valid data.")
-    else:
-        st.error("Please run LULC classification first.")
+# Streamlit UI
+st.title("Land Use and Land Cover Classification with Forest Change Detection")
 
-# Display LULC statistics
-if st.session_state['lulc_stats']:
-    st.subheader("LULC Statistics")
-    stats_df = pd.DataFrame(list(st.session_state['lulc_stats'].items()), columns=['LULC Class', 'Area (Hectares)'])
-    st.dataframe(stats_df)
+classifier_type = st.selectbox("Select Classifier", ['Random Forest', 'SVM', 'CART'])
+available_years = [2010, 2015, 2020, 2024]
 
-# Export functionality
-if st.session_state['lulc_image']:
-    export_button = st.button('Export Classified Image to Google Drive')
-    if export_button:
-        # Export classified image to Google Drive
-        task = ee.batch.Export.image.toDrive(
-            image=st.session_state['lulc_image'],
-            description=f'LULC_Classification_{st.session_state["lulc_year"]}',
-            scale=30,
-            region=area_of_interest,
-            maxPixels=1e9
-        )
-        task.start()
-        st.success('Export task started. Check your Google Drive.')
+start_year = st.select_slider("Select year for LULC classification", options=available_years, value=available_years[0])
+end_year = st.select_slider("Select year for change detection", options=available_years, value=start_year)
 
-# User feedback messages
+# LULC Classification Palette (Forest: 0, Bareland: 1, Built-up: 2, Others: 3)
+lulc_palette = {
+    "Forest": "#228B22",  # Green
+    "Bareland": "#D2B48C",  # Tan
+    "Built-up": "#FF6347",  # Orange-red
+    "Others": "#808080"  # Gray
+}
+
+# Forest Change Palette
+change_palette = {
+    "Loss": "#FF0000",  # Red for forest loss
+    "No Change": "#FFFFFF",  # White for no change
+    "Gain": "#006400"  # Dark green for forest gain
+}
+
+st.subheader("LULC Classification")
+if st.button(f"Classify LULC for {start_year}"):
+    with st.spinner(f"Classifying LULC for {start_year} using {classifier_type}..."):
+        lulc_image = get_lulc_image(start_year, classifier_type)
+        if lulc_image:
+            st.session_state['lulc_image'] = lulc_image
+            map_lulc = geemap.Map(center=[-0.436959, 36.957951], zoom=10)
+            map_lulc.addLayer(lulc_image, {'min': 0, 'max': 3, 'palette': list(lulc_palette.values())}, f"LULC {start_year}")
+            add_legend(map_lulc, f"LULC {start_year} Legend", lulc_palette)
+            st.session_state['lulc_map'] = map_lulc
+            st.success(f"LULC Classification for {start_year} completed!")
+        else:
+                        st.error("LULC Classification failed. Please check the logs for details.")
+
+# Forest Change Detection Section
+st.subheader("Forest Change Detection")
+if st.button(f"Detect Forest Change from {start_year} to {end_year} using {classifier_type}"):
+    with st.spinner(f"Detecting forest change from {start_year} to {end_year}..."):
+        forest_change_image = calculate_forest_change(start_year, end_year, classifier_type)
+        if forest_change_image:
+            st.session_state['forest_change_image'] = forest_change_image
+            map_change = geemap.Map(center=[-0.436959, 36.957951], zoom=10)
+            map_change.addLayer(forest_change_image, {'min': -1, 'max': 1, 'palette': ['#FF0000', '#FFFFFF', '#006400']}, 'Forest Change')
+            add_legend(map_change, "Forest Change Legend", {
+                "Loss": "#FF0000",  # Red for forest loss
+                "No Change": "#FFFFFF",  # White for no change
+                "Gain": "#006400"  # Dark green for forest gain
+            })
+            st.session_state['forest_change_map'] = map_change
+            st.success(f"Forest Change Detection from {start_year} to {end_year} completed!")
+        else:
+            st.error("Forest Change Detection failed. Please check the logs for details.")
+
+# Display Maps
 if st.session_state['lulc_map']:
-    st.subheader("LULC Map")
-    st_folium(st.session_state['lulc_map'], width=725)
+    st.subheader(f"LULC Map for {start_year}")
+    st_folium(st.session_state['lulc_map'], width=700, height=500)
+
+if st.session_state['forest_change_map']:
+    st.subheader(f"Forest Change Map from {start_year} to {end_year}")
+    st_folium(st.session_state['forest_change_map'], width=700, height=500)
+
+# Add a reset button to clear the session state
+if st.button("Reset"):
+    for var in session_vars:
+        st.session_state[var] = None
+    st.success("Session state has been reset.")
+
 
 # Sidebar with instructions
 st.sidebar.header("Instructions")
@@ -228,3 +241,36 @@ st.sidebar.markdown("""
 3. Detect forest changes between two years.
 4. Export the classified image or forest change data as GeoTIFF to Google Drive.
 """)
+# Footer CSS
+footer_css = """
+<style>
+.sticky-footer {
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    background: linear-gradient(to right, #4CAF50, #2196F3);
+    color: #FFFFFF;
+    text-align: center;
+    font-size: 1em;
+    padding: 15px 0;
+    border-top: 2px solid #FFC107;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+}
+
+a {
+    color: #FFFFFF;
+    text-decoration: none;
+}
+
+.footer-links {
+    margin-top: 10px;
+}
+
+.footer-links a {
+    color: #FFC107;
+}
+</style>
+"""
+st.markdown(footer_css, unsafe_allow_html=True)
+st.markdown("<div class='sticky-footer'>Made with ❤️ by Charles Churu | <a href='#'>Project Details</a></div>", unsafe_allow_html=True)
