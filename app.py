@@ -297,7 +297,6 @@ def export_to_geotiff(image, filename):
     except Exception as e:
         st.error(f"Failed to export image: {str(e)}")
 
-# Existing Streamlit UI code...
 
 # Export buttons
 if st.session_state['lulc_image']:
