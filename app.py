@@ -170,34 +170,57 @@ def calculate_forest_change(start_year, end_year, classifier_type):
 
     return forest_change_image  # Return the forest change image for visualization
 
-# Function to add legend
-def add_legend(map_obj, title, legend_dict):
-    legend_html = f"""
-    <div style="
-        position: fixed;
-        bottom: 50px;
-        left: 50px;
-        width: 150px;
-        background-color: rgba(255, 255, 255, 0.8);
-        border: 2px solid gray;
-        z-index: 9999;
-        padding: 10px;
-        font-size: 14px;
-    ">
-        <h4 style="margin-bottom: 10px; text-align: center;">{title}</h4>
-    """
-    for class_name, color in legend_dict.items():
-        legend_html += f"""
-        <div style="display: flex; align-items: center; margin-bottom: 5px;">
-            <div style="background-color: {color}; width: 20px; height: 20px; margin-right: 10px;"></div>
-            <span>{class_name}</span>
-        </div>
-        """
-    legend_html += "</div>"
-    map_obj.get_root().html.add_child(folium.Element(legend_html))
+import pandas as pd
+
+# Authenticate and initialize Earth Engine with a specific project
+ee.Authenticate()  # This opens a browser for OAuth2 authentication
+ee.Initialize(project='ee-gisandremotesensing22')  # Replace with your actual project ID
+
+import pandas as pd
+# import streamlit as st
+
+# Function to display a legend table below the map
+def display_legend_table(legend_dict, title):
+    # Create a DataFrame for the legend
+    legend_data = {
+        'Class': list(legend_dict.keys()),
+        'Color': list(legend_dict.values())
+    }
+    df_legend = pd.DataFrame(legend_data)
+
+    # Define a function to apply background colors
+    def colorize(row):
+        return ['background-color: ' + row['Color']] * len(row)
+
+    # Display the table with styling
+    st.write(f"<h4 style='text-align:center;'>{title}</h4>", unsafe_allow_html=True)
+    st.table(df_legend.style.apply(colorize, axis=1))
+
+
+# Function to display forest change image
+def display_forest_change(forest_change_image):
+    map_change = geemap.Map(center=[-0.436959, 36.957951], zoom=10)
+    map_change.addLayer(forest_change_image, {'min': -1, 'max': 1, 'palette': ['#FF0000', '#FFFFFF', '#006400']}, 'Forest Change')
+    st_folium(map_change, width=700, height=500)
+    
+    # Forest Change Legend as a Dictionary
+    forest_change_legend = {
+        "Loss": "#FF0000",  # Red for forest loss
+        "No Change": "#FFFFFF",  # White for no change
+        "Gain": "#006400"  # Dark green for forest gain
+    }
+    display_legend_table(forest_change_legend, "Forest Change Detection Legend")
 
 # Streamlit UI
-st.title("Land Use and Land Cover Classification with Forest Change Detection")
+st.title("Land Use and Land Cover Classification & Forest Change Detection")
+
+# Initialize session state
+if 'lulc_image' not in st.session_state:
+    st.session_state['lulc_image'] = None
+if 'forest_change_image' not in st.session_state:
+    st.session_state['forest_change_image'] = None
+if 'lulc_map' not in st.session_state:
+    st.session_state['lulc_map'] = None
 
 classifier_type = st.selectbox("Select Classifier", ['Random Forest', 'SVM', 'CART'])
 available_years = [2010, 2015, 2020, 2024]
@@ -205,21 +228,15 @@ available_years = [2010, 2015, 2020, 2024]
 start_year = st.select_slider("Select year for LULC classification", options=available_years, value=available_years[0])
 end_year = st.select_slider("Select year for change detection", options=available_years, value=start_year)
 
-# LULC Classification Palette (Forest: 0, Bareland: 1, Built-up: 2, Others: 3)
+# LULC Classification Palette
 lulc_palette = {
-    "Forest": "#228B22",  # Green
-    "Bareland": "#D2B48C",  # Tan
-    "Built-up": "#FF6347",  # Orange-red
-    "Others": "#808080"  # Gray
+    "Forest": "#228B22",
+    "Bareland": "#D2B48C",
+    "Built-up": "#FF6347",
+    "Others": "#808080"
 }
 
-# Forest Change Palette
-change_palette = {
-    "Loss": "#FF0000",  # Red for forest loss
-    "No Change": "#FFFFFF",  # White for no change
-    "Gain": "#006400"  # Dark green for forest gain
-}
-
+# Display LULC Classification
 st.subheader("LULC Classification")
 if st.button(f"Classify LULC for {start_year}"):
     with st.spinner(f"Classifying LULC for {start_year} using {classifier_type}..."):
@@ -228,11 +245,21 @@ if st.button(f"Classify LULC for {start_year}"):
             st.session_state['lulc_image'] = lulc_image
             map_lulc = geemap.Map(center=[-0.436959, 36.957951], zoom=10)
             map_lulc.addLayer(lulc_image, {'min': 0, 'max': 3, 'palette': list(lulc_palette.values())}, f"LULC {start_year}")
-            add_legend(map_lulc, f"LULC {start_year} Legend", lulc_palette)
             st.session_state['lulc_map'] = map_lulc
+            st_folium(map_lulc, width=700, height=500)
             st.success(f"LULC Classification for {start_year} completed!")
+            
+            # LULC Legend Table
+            display_legend_table(lulc_palette, f"LULC {start_year} Legend")
         else:
-                        st.error("LULC Classification failed. Please check the logs for details.")
+            st.error("LULC Classification failed. Please check the logs for details.")
+
+
+# Display previously classified LULC map if available
+if st.session_state['lulc_map']:
+    st.subheader(f"Persisted LULC Classification Map for {start_year}")
+    st_folium(st.session_state['lulc_map'], width=700, height=500)
+    display_legend_table(lulc_palette, f"LULC {start_year} Legend")
 
 # Forest Change Detection Section
 st.subheader("Forest Change Detection")
@@ -240,18 +267,16 @@ if st.button(f"Detect Forest Change from {start_year} to {end_year} using {class
     with st.spinner(f"Detecting forest change from {start_year} to {end_year}..."):
         forest_change_image = calculate_forest_change(start_year, end_year, classifier_type)
         if forest_change_image:
-            st.session_state['forest_change_image'] = forest_change_image
-            map_change = geemap.Map(center=[-0.436959, 36.957951], zoom=10)
-            map_change.addLayer(forest_change_image, {'min': -1, 'max': 1, 'palette': ['#FF0000', '#FFFFFF', '#FFFF00']}, 'Forest Change')
-            add_legend(map_change, "Forest Change Legend", {
-                "Loss": "#FF0000",  # Red for forest loss
-                "No Change": "#FFFFFF",  # White for no change
-                "Gain": "#006400"  # Dark green for forest gain
-            })
-            st.session_state['forest_change_map'] = map_change
-            st.success(f"Forest Change Detection from {start_year} to {end_year} completed!")
+            st.session_state['forest_change_image'] = forest_change_image  # Store in session state
+            display_forest_change(forest_change_image)
+            st.success(f"Forest change detection from {start_year} to {end_year} completed!")
         else:
-            st.error("Forest Change Detection failed. Please check the logs for details.")
+            st.error("Forest change detection failed. Please check the logs for details.")
+
+# Display previously detected forest change map if available
+if st.session_state['forest_change_image']:
+    st.subheader(f"Persisted Forest Change Map from {start_year} to {end_year}")
+    display_forest_change(st.session_state['forest_change_image'])
 
 # Display Maps
 if st.session_state['lulc_map']:
@@ -317,6 +342,19 @@ st.sidebar.markdown("""
 3. Detect forest changes between two years.
 4. Export the classified image or forest change data as GeoTIFF to Google Drive.
 """)
+def display_links():
+    st.sidebar.header("Contact & Resources")
+    st.sidebar.markdown(
+        """
+        - **Email**: [charleschuru94@gmail.com](mailto:charleschuru94@gmail.com)
+        - **GitHub Repository**: [View Repository](https://github.com/charles483/LULC_Project_v1_2024/)
+        - **Documentation Site**: [Documentation](https://charles483.github.io/pages/)
+        """
+    )
+
+# Call the function to display the links
+display_links()
+
 # Footer CSS
 footer_css = """
 <style>
