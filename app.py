@@ -268,6 +268,47 @@ if st.button("Reset"):
         st.session_state[var] = None
     st.success("Session state has been reset.")
 
+# Add the necessary imports
+import os
+
+# Function to export image to GeoTIFF
+def export_to_geotiff(image, filename):
+    try:
+        # Ensure the filename has the correct .tif extension
+        if not filename.endswith('.tif'):
+            filename += '.tif'
+        
+        # Define the export task
+        task = ee.batch.Export.image.toDrive(
+            image=image,
+            description=filename,
+            scale=30,
+            region=image.geometry().bounds(),
+            fileFormat='GeoTIFF'
+        )
+        task.start()
+        
+        # Wait for the task to complete
+        while task.active():
+            print('Exporting to GeoTIFF...')
+        
+        st.success(f"Exported {filename} successfully!")
+        
+    except Exception as e:
+        st.error(f"Failed to export image: {str(e)}")
+
+# Existing Streamlit UI code...
+
+# Export buttons
+if st.session_state['lulc_image']:
+    if st.button("Export LULC Image to GeoTIFF"):
+        filename = st.text_input("Enter filename for LULC GeoTIFF", "LULC_{}.tif".format(start_year))
+        export_to_geotiff(st.session_state['lulc_image'], filename)
+
+if st.session_state['forest_change_image']:
+    if st.button("Export Forest Change Image to GeoTIFF"):
+        filename = st.text_input("Enter filename for Forest Change GeoTIFF", "Forest_Change_{}_to_{}.tif".format(start_year, end_year))
+        export_to_geotiff(st.session_state['forest_change_image'], filename)
 
 # Sidebar with instructions
 st.sidebar.header("Instructions")
