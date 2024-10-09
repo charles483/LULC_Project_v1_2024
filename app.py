@@ -178,13 +178,13 @@ def add_legend(map_obj, title, legend_dict):
         bottom: 50px;
         left: 50px;
         width: 150px;
-        background-color: white;
+        background-color: rgba(255, 255, 255, 0.8);
         border: 2px solid gray;
         z-index: 9999;
         padding: 10px;
         font-size: 14px;
     ">
-        <h4 style="margin-bottom: 10px;">{title}</h4>
+        <h4 style="margin-bottom: 10px; text-align: center;">{title}</h4>
     """
     for class_name, color in legend_dict.items():
         legend_html += f"""
@@ -242,7 +242,7 @@ if st.button(f"Detect Forest Change from {start_year} to {end_year} using {class
         if forest_change_image:
             st.session_state['forest_change_image'] = forest_change_image
             map_change = geemap.Map(center=[-0.436959, 36.957951], zoom=10)
-            map_change.addLayer(forest_change_image, {'min': -1, 'max': 1, 'palette': ['#FF0000', '#FFFFFF', '#006400']}, 'Forest Change')
+            map_change.addLayer(forest_change_image, {'min': -1, 'max': 1, 'palette': ['#FF0000', '#FFFFFF', '#FFFF00']}, 'Forest Change')
             add_legend(map_change, "Forest Change Legend", {
                 "Loss": "#FF0000",  # Red for forest loss
                 "No Change": "#FFFFFF",  # White for no change

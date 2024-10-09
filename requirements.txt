@@ -3,3 +3,5 @@ geemap
 folium
 earthengine-api
 streamlit_folium
+gcloud
+geetools
