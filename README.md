@@ -3,6 +3,8 @@
 
 # LULC Classification and Forest Change Detection App
 
+![Preview Image](preview.png)
+
 ## Setup
 
 1. **Clone the Repository**:

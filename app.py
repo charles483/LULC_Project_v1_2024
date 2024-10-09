@@ -119,7 +119,7 @@ def get_lulc_image(year, classifier_type):
         return classified_image
     return None
 
-# Function to calculate forest change between two years
+## Function to calculate forest change between two years
 def calculate_forest_change(start_year, end_year, classifier_type):
     start_image = get_lulc_image(start_year, classifier_type)
     end_image = get_lulc_image(end_year, classifier_type)
@@ -128,11 +128,47 @@ def calculate_forest_change(start_year, end_year, classifier_type):
         st.error(f"Unable to retrieve classified images for the years {start_year} or {end_year}")
         return None
 
-    forest_start = start_image.eq(0)
-    forest_end = end_image.eq(0)
-    forest_change = forest_end.subtract(forest_start)
+    # Create binary masks for forests (assuming 0 indicates forest cover)
+    forest_start = start_image.eq(0)  # Forests in the start year
+    forest_end = end_image.eq(0)      # Forests in the end year
 
-    return forest_change
+    # Calculate area covered by forest in both years
+    initial_forest_area = forest_start.reduceRegion(
+        reducer=ee.Reducer.sum(),
+        geometry=start_image.geometry(),
+        scale=30  # Adjust scale as necessary for your data
+    ).getInfo().get('classification')  # Replace 'classification' with the correct property name
+
+    final_forest_area = forest_end.reduceRegion(
+        reducer=ee.Reducer.sum(),
+        geometry=end_image.geometry(),
+        scale=30  # Adjust scale as necessary for your data
+    ).getInfo().get('classification')  # Replace 'classification' with the correct property name
+
+    # Ensure initial_forest_area and final_forest_area are numeric
+    initial_forest_area = int(initial_forest_area) if initial_forest_area is not None else 0
+    final_forest_area = int(final_forest_area) if final_forest_area is not None else 0
+
+    # Calculate the change in forest area
+    forest_change = final_forest_area - initial_forest_area
+
+    # Create a forest change image
+    forest_change_image = forest_end.subtract(forest_start).rename('forest_change')
+
+    # Determine gain or loss
+    if forest_change > 0:
+        change_description = f"Gain of {forest_change} pixels of forest cover."
+    elif forest_change < 0:
+        change_description = f"Loss of {-forest_change} pixels of forest cover."
+    else:
+        change_description = "No change in forest cover."
+
+    # Output the results
+    st.success(change_description)
+    st.write(f"Initial forest area: {initial_forest_area} pixels")
+    st.write(f"Final forest area: {final_forest_area} pixels")
+
+    return forest_change_image  # Return the forest change image for visualization
 
 # Function to add legend
 def add_legend(map_obj, title, legend_dict):
